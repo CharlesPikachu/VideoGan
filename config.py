@@ -20,6 +20,12 @@ options explain:
 	-gen_scale: Scale for generator-width and height.
 	-pic_dim: Dimension of image color.
 	-noise_dim: Dimension of initial noise vector.
+	-sample_size: Number of samples to be generated at once(for evaluate).
+	-mask_L1_lambda: Weight for L1 regularizer of mask.
+	-trainlogfile: Record the train info.
+	-modelSaved: Save the trained model.
+	-max_epoch: Number of training epochs.
+	-save_interval: Save and test the model each save_interval epochs.
 '''
 options = {
 			'info': 'videoGan options',
@@ -33,5 +39,11 @@ options = {
 			'gen_dim': 64,
 			'gen_scale': [64, 32, 16, 8, 4, 2],
 			'pic_dim': 3,
-			'noise_dim': 100
+			'noise_dim': 100,
+			'sample_size': 32,
+			'mask_L1_w': 0.1,
+			'trainlogfile': 'train.log',
+			'modelSaved': './modelSaved',
+			'max_epoch': 1000,
+			'save_interval': 5
 			}

@@ -6,6 +6,7 @@ Author:
 '''
 import os
 import time
+import numpy as np
 import tensorflow as tf
 
 
@@ -21,7 +22,11 @@ class videoGan():
 		self.initialize()
 	'''initialize'''
 	def initialize(self):
+		# for record.
 		self.saver = tf.train.Saver()
+		self.logfile = open(self.options.get('trainlogfile'), 'w')
+		self.modelSaved = self.options.get('modelSaved')
+		# hyperparameter.
 		self.batch_size = self.options.get('batch_size')
 		self.video_shape = self.options.get('video_shape')
 		self.dis_dim = self.options.get('dis_dim')
@@ -33,13 +38,72 @@ class videoGan():
 		self.beta1_g = self.options.get('beta1_g')
 		self.beta1_d = self.options.get('beta1_d')
 		self.noise_dim = self.options.get('noise_dim')
-
+		self.sample_size = self.options.get('sample_size')
+		self.mask_L1_lambda = self.options.get('mask_L1_lambda')
+		self.max_epoch = self.options.get('max_epoch')
+		self.save_interval = self.options.get('save_interval')
+	'''call the function at the end of training'''
+	def closure(self):
+		self.logfile.close()
 	'''call the function to train the model'''
-	def train(self):
-		
-		d_optim = tf.train.AdamOptimizer(self.lr_d, beta1=beta1_d).minimize(self.d_loss, var_list=self.d_vars)
-		pass
-
+	def train(self, dataset):
+		# define the placeholders.
+		videos_ph = tf.placeholder(dtype=tf.float32, shape=[self.batch_size]+self.video_shape, name='real_videos')
+		noise_ph = tf.placeholder(dtype=tf.float32, shape=[None, self.noise_dim], name='noise')
+		# get the generator and discriminator.
+		generator, mask_L1_penalty = self.gNet(noise_ph)
+		dis_real, dis_real_logits = self.dNet(videos_ph)
+		gen_samples = self.gNet(noise_ph, is_training=False, reuse=True)
+		dis_fake, dis_fake_logits = self.dNet(generator, reuse=True)
+		# calculate the loss.
+		dis_loss_real = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(dis_real_logits, tf.ones_like(dis_real)))
+		dis_loss_fake = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(dis_fake_logits, tf.zeros_like(dis_fake)))
+		dis_loss = dis_loss_real + dis_loss_fake
+		gen_loss_no_penalty = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(dis_fake_logits, tf.ones_like(dis_fake)))
+		gen_loss = self.mask_L1_lambda*mask_L1_penalty + gen_loss_no_penalty
+		# distinguish the variable.
+		trainable_vars = tf.trainable_variables()
+		dis_vars = [var for var in trainable_vars if 'dNet_' in var.name]
+		gen_vars = [var for var in trainable_vars if 'gNet_' in var.name]
+		# calculate the number of parameters.
+		total_parameters = 0
+		for var in trainable_vars:
+			params = 1
+			for dim in var.get_shape().as_list():
+				params *= int(dim)
+				total_parameters += params
+		loginfo = self.logger('<Total Parameters>: %d' % total_parameters)
+		self.logfile.write(loginfo + '\n')
+		# create optimizer.
+		dis_optim = tf.train.AdamOptimizer(self.lr_d, beta1=self.beta1_d).minimize(dis_loss, var_list=dis_vars)
+		gen_optim = tf.train.AdamOptimizer(self.lr_g, beta1=self.beta1_g).minimize(gen_loss, var_list=gen_vars)
+		# training.
+		tmp = set(tf.global_variables())
+		with tf.Session() as session:
+			self.session = session
+			epoch_now = self.loadModel(ckptpath=self.modelSaved)
+			if epoch_now:
+				self.session.run(tf.variables_initializer(set(tf.global_variables()) - tmp))
+			else:
+				tf.global_variables_initializer().run()
+				epoch_now = 0
+			for epoch in range(epoch_now, self.max_epoch):
+				batchnum_per_epoch = len(dataset)
+				for batch_idx, data in enumerate(dataset.iteration()):
+					batch_noise = np.random.uniform(-1, 1, [self.batch_size, self.noise_dim]).astype(np.float32)
+					self.session.run([dis_optim], feed_dict={videos_ph: data, noise_ph: batch_noise})
+					self.session.run([gen_optim], feed_dict={noise_ph: batch_noise})
+					errorD_fake = dis_loss_fake.eval({noise_ph: batch_noise})
+					errorD_real = dis_loss_real.eval({videos_ph: data})
+					errorG = gen_loss.eval({noise_ph: batch_noise})
+					loginfo = self.logger('[Epoch(%d/%d)-Batch(%d/%d)]: \n<errorD_fake>: %f, <errorD_real>: %f, <errorG>: %f' % (epoch, self.max_epoch, batch_idx, batchnum_per_epoch, errorD_fake, errorD_real, errorG))
+					self.logfile.write(loginfo + '\n')
+				if (epoch % self.save_interval == 0) and (epoch != 0):
+					self.saveModel(savepath=self.modelSaved, epoch=epoch)
+					sample_noise = np.random.uniform(-1, 1, [self.sample_size, self.noise_dim]).astype(np.float32)
+					sample_videos, errorG = self.session.run([gen_samples, dis_loss, gen_loss], feed_dict={noise_ph: sample_noise})
+					loginfo = self.logger('[Sample]: \n<errorG>: %f' % errorG)
+		self.closure()
 	'''
 	Function:
 		discriminator
@@ -58,7 +122,7 @@ class videoGan():
 		conv4 = self.conv3D(bn3, self.dis_dim*8, name='dNet_conv4')
 		bn4 = self.leakyRelu(self.batchNorm(conv4, is_training=is_training, name='dNet_bn4'))
 		fc = self.linear(tf.reshape(bn4, [self.batch_size, -1]), 1, name='dNet_fc')
-		return fc, tf.nn.sigmoid(fc)
+		return tf.nn.sigmoid(fc), fc
 	'''
 	Function:
 		generator
@@ -71,39 +135,39 @@ class videoGan():
 		if reuse:
 			tf.get_variable_scope().reuse_variables()
 		'''background stream'''
-		bg_stream_fc = self.linear(x, self.gen_dim*8*self.gen_scale[4]*self.gen_scale[4], 'bg_stream_fc')
+		bg_stream_fc = self.linear(x, self.gen_dim*8*self.gen_scale[4]*self.gen_scale[4], name='gNet_bg_stream_fc')
 		bg_stream_x = tf.reshape(bg_stream_fc, [-1, self.gen_scale[4], self.gen_scale[4], self.gen_dim*8])
-		bg_stream_bn0 = tf.nn.relu(self.batchNorm(bg_stream_x, is_training=is_training, name='bg_stream_bn0'))
-		bg_stream_deconv1 = self.deconv2D(bg_stream_bn0, [self.batch_size, self.gen_scale[3], self.gen_scale[3], self.gen_dim*4], name='bg_stream_deconv1')
-		bg_stream_bn1 = tf.nn.relu(self.batchNorm(bg_stream_deconv1, is_training=is_training, name='bg_stream_bn1'))
-		bg_stream_deconv2 = self.deconv2D(bg_stream_bn1, [self.batch_size, self.gen_scale[2], self.gen_scale[2], self.gen_dim*2], name='bg_stream_deconv2')
-		bg_stream_bn2 = tf.nn.relu(self.batchNorm(bg_stream_deconv2, is_training=is_training, name='bg_stream_bn2'))
-		bg_stream_deconv3 = self.deconv2D(bg_stream_bn2, [self.batch_size, self.gen_scale[1], self.gen_scale[1], self.gen_dim*1], name='bg_stream_deconv3')
-		bg_stream_bn3 = tf.nn.relu(self.batchNorm(bg_stream_deconv3, is_training=is_training, name='bg_stream_bn3'))
-		bg_stream_deconv4 = self.deconv2D(bg_stream_bn3, [self.batch_size, self.gen_scale[0], self.gen_scale[0], self.pic_dim], name='bg_stream_deconv4')
+		bg_stream_bn0 = tf.nn.relu(self.batchNorm(bg_stream_x, is_training=is_training, name='gNet_bg_stream_bn0'))
+		bg_stream_deconv1 = self.deconv2D(bg_stream_bn0, [self.batch_size, self.gen_scale[3], self.gen_scale[3], self.gen_dim*4], name='gNet_bg_stream_deconv1')
+		bg_stream_bn1 = tf.nn.relu(self.batchNorm(bg_stream_deconv1, is_training=is_training, name='gNet_bg_stream_bn1'))
+		bg_stream_deconv2 = self.deconv2D(bg_stream_bn1, [self.batch_size, self.gen_scale[2], self.gen_scale[2], self.gen_dim*2], name='gNet_bg_stream_deconv2')
+		bg_stream_bn2 = tf.nn.relu(self.batchNorm(bg_stream_deconv2, is_training=is_training, name='gNet_bg_stream_bn2'))
+		bg_stream_deconv3 = self.deconv2D(bg_stream_bn2, [self.batch_size, self.gen_scale[1], self.gen_scale[1], self.gen_dim*1], name='gNet_bg_stream_deconv3')
+		bg_stream_bn3 = tf.nn.relu(self.batchNorm(bg_stream_deconv3, is_training=is_training, name='gNet_bg_stream_bn3'))
+		bg_stream_deconv4 = self.deconv2D(bg_stream_bn3, [self.batch_size, self.gen_scale[0], self.gen_scale[0], self.pic_dim], name='gNet_bg_stream_deconv4')
 		background = tf.nn.tanh(bg_stream_deconv4)
 		background = tf.tile(tf.reshape(background, [self.batch_size, 1, self.gen_scale[0], self.gen_scale[0], self.pic_dim]), [1, self.gen_scale[1], 1, 1, 1])
 		'''foreground stream'''
-		fg_stream_fc = self.linear(x, self.gen_dim*8*self.gen_scale[5]*self.gen_scale[4]*self.gen_scale[4], 'fg_stream_fc')
+		fg_stream_fc = self.linear(x, self.gen_dim*8*self.gen_scale[5]*self.gen_scale[4]*self.gen_scale[4], name='gNet_fg_stream_fc')
 		fg_stream_x = tf.reshape(fg_stream_fc, [-1, self.gen_scale[5], self.gen_scale[4], self.gen_scale[4], self.gen_dim*8])
-		fg_stream_bn0 = tf.nn.relu(self.batchNorm(fg_stream_x, is_training=is_training, name='fg_stream_bn0'))
-		fg_stream_deconv1 = self.deconv3D(fg_stream_bn0, [self.batch_size, self.gen_scale[4], self.gen_scale[3], self.gen_scale[3], self.gen_dim*4], name='fg_stream_deconv1')
-		fg_stream_bn1 = tf.nn.relu(self.batchNorm(fg_stream_deconv1, is_training=is_training, name='fg_stream_bn1'))
-		fg_stream_deconv2 = self.deconv3D(fg_stream_bn1, [self.batch_size, self.gen_scale[3], self.gen_scale[2], self.gen_scale[2], self.gen_dim*2], name='fg_stream_deconv2')
-		fg_stream_bn2 = tf.nn.relu(self.batchNorm(fg_stream_deconv2, is_training=is_training, name='fg_stream_bn2'))
-		fg_stream_deconv3 = self.deconv3D(fg_stream_bn2, [self.batch_size, self.gen_scale[2], self.gen_scale[1], self.gen_scale[1], self.gen_dim*1], name='fg_stream_deconv3')
-		fg_stream_bn3 = tf.nn.relu(self.batchNorm(fg_stream_deconv3, is_training=is_training, name='fg_stream_bn3'))
-		# get the mask
-		mask, mask_w, mask_b = self.deconv3D(fg_stream_bn3, [self.batch_size, self.gen_scale[1], self.gen_scale[0], self.gen_scale[0], 1], with_wb=True, name='g_mask')
+		fg_stream_bn0 = tf.nn.relu(self.batchNorm(fg_stream_x, is_training=is_training, name='gNet_fg_stream_bn0'))
+		fg_stream_deconv1 = self.deconv3D(fg_stream_bn0, [self.batch_size, self.gen_scale[4], self.gen_scale[3], self.gen_scale[3], self.gen_dim*4], name='gNet_fg_stream_deconv1')
+		fg_stream_bn1 = tf.nn.relu(self.batchNorm(fg_stream_deconv1, is_training=is_training, name='gNet_fg_stream_bn1'))
+		fg_stream_deconv2 = self.deconv3D(fg_stream_bn1, [self.batch_size, self.gen_scale[3], self.gen_scale[2], self.gen_scale[2], self.gen_dim*2], name='gNet_fg_stream_deconv2')
+		fg_stream_bn2 = tf.nn.relu(self.batchNorm(fg_stream_deconv2, is_training=is_training, name='gNet_fg_stream_bn2'))
+		fg_stream_deconv3 = self.deconv3D(fg_stream_bn2, [self.batch_size, self.gen_scale[2], self.gen_scale[1], self.gen_scale[1], self.gen_dim*1], name='gNet_fg_stream_deconv3')
+		fg_stream_bn3 = tf.nn.relu(self.batchNorm(fg_stream_deconv3, is_training=is_training, name='gNet_fg_stream_bn3'))
+		# get the mask.
+		mask, mask_w, mask_b = self.deconv3D(fg_stream_bn3, [self.batch_size, self.gen_scale[1], self.gen_scale[0], self.gen_scale[0], 1], with_wb=True, name='gNet_mask')
 		mask = tf.nn.sigmoid(mask)
-		# get the foreground
-		fg_stream_deconv4 = self.deconv3D(fg_stream_bn3, [self.batch_size, self.gen_scale[1], self.gen_scale[0], self.gen_scale[0], self.pic_dim], name='fg_stream_deconv4')
+		# get the foreground.
+		fg_stream_deconv4 = self.deconv3D(fg_stream_bn3, [self.batch_size, self.gen_scale[1], self.gen_scale[0], self.gen_scale[0], self.pic_dim], name='gNet_fg_stream_deconv4')
 		foreground = tf.nn.tanh(fg_stream_deconv4)
 		'''merge the foreground and background'''
 		foreground_masked = tf.mul(foreground, mask)
 		background_masked = tf.mul(background, tf.sub(tf.constant([1.0]), mask))
 		video = tf.add(foreground, background)
-		# for L1 regularizer penalty
+		# for L1 regularizer penalty of mask.
 		return video, tf.reduce_mean(tf.reduce_sum(tf.abs(mask_w))) if is_training else video
 	'''2D convolution'''
 	def conv2D(self,
@@ -201,13 +265,29 @@ class videoGan():
 		return tf.maximum(x, x * leaky)
 	'''print the info with time'''
 	def logger(self, message):
-		print('%s %s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), message))
-	'''save the checkpoints.'''
-	def saveModel(self, savepath, epoch, session):
+		info = '%s %s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), message)
+		print(info)
+		return info
+	'''save the checkpoints'''
+	def saveModel(self, savepath, epoch):
 		if not os.path.exists(savepath):
 			os.mkdir(savepath)
 		epoch_dir = os.path.join(savepath, str(epoch))
 		if not os.path.exists(epoch_dir):
 			os.mkdir(epoch_dir)
-		self.saver.save(session, os.path.join(epoch_dir, 'model.ckpt'))
+		self.saver.save(self.session, os.path.join(epoch_dir, 'model.ckpt'))
 		self.logger('Checkpoint of %d saved into %s...' % (epoch, epoch_dir))
+	'''load the checkpoints'''
+	def loadModel(self, ckptpath):
+		if not os.path.exists(ckptpath):
+			self.logger('No checkpoints found, start to train a new model...')
+			return False
+		ckptdirs = os.listdir(ckptpath)
+		if len(ckptdirs) < 1:
+			self.logger('No checkpoints found, start to train a new model...')
+			return False
+		ckptdirs = [int(i) for i in ckptdirs]
+		ckptfile = os.path.join(str(max(ckptdirs)), 'model.ckpt')
+		self.saver.restore(self.session, ckptfile)
+		self.logger('Checkpoint of %d looded successfully...' % ckptfile)
+		return max(ckptdirs)
