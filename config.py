@@ -14,7 +14,6 @@ options explain:
 	-lr_d: Learning rate for discriminator.
 	-beta1_g: Beta1 for generator.
 	-beta1_d: Beta1 for discriminator.
-	-video_shape: The shape of a video.
 	-dis_dim: Scale for discriminator-channel.
 	-gen_dim: Scale for generator-channel.
 	-gen_scale: Scale for generator-width and height.
@@ -22,10 +21,12 @@ options explain:
 	-noise_dim: Dimension of initial noise vector.
 	-sample_size: Number of samples to be generated at once(for evaluate).
 	-mask_L1_lambda: Weight for L1 regularizer of mask.
-	-trainlogfile: Record the train info.
-	-modelSaved: Save the trained model.
+	-trainlogfile: Record the train info(filename).
+	-modelSaved: Save the trained model(path).
+	-samplesSaved: Save the sample videos from generator(path).
 	-max_epoch: Number of training epochs.
 	-save_interval: Save and test the model each save_interval epochs.
+	-trainSet: The paths of the videos for training.
 '''
 options = {
 			'info': 'videoGan options',
@@ -34,7 +35,6 @@ options = {
 			'lr_d': 1e-5,
 			'beta1_g': 0.5,
 			'beta1_d': 0.5,
-			'video_shape': [32, 64, 64, 3],
 			'dis_dim': 64,
 			'gen_dim': 64,
 			'gen_scale': [64, 32, 16, 8, 4, 2],
@@ -44,6 +44,8 @@ options = {
 			'mask_L1_w': 0.1,
 			'trainlogfile': 'train.log',
 			'modelSaved': './modelSaved',
+			'samplesSaved': './samplesSaved',
 			'max_epoch': 1000,
-			'save_interval': 5
+			'save_interval': 5,
+			'trainSet': 'trainList.txt'
 			}

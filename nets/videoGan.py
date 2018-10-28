@@ -14,7 +14,7 @@ import tensorflow as tf
 Function:
 	Build the model of videoGan.
 Options:
-	Please see config.py to understand the meaning of options.
+	Please see config.py to learn about the meaning of options.
 '''
 class videoGan():
 	def __init__(self, **kwargs):
@@ -26,9 +26,9 @@ class videoGan():
 		self.saver = tf.train.Saver()
 		self.logfile = open(self.options.get('trainlogfile'), 'w')
 		self.modelSaved = self.options.get('modelSaved')
+		self.samplesSaved = 
 		# hyperparameter.
 		self.batch_size = self.options.get('batch_size')
-		self.video_shape = self.options.get('video_shape')
 		self.dis_dim = self.options.get('dis_dim')
 		self.gen_dim = self.options.get('gen_dim')
 		self.gen_scale = self.options.get('gen_scale')
@@ -42,11 +42,12 @@ class videoGan():
 		self.mask_L1_lambda = self.options.get('mask_L1_lambda')
 		self.max_epoch = self.options.get('max_epoch')
 		self.save_interval = self.options.get('save_interval')
+		self.video_shape = [self.gen_scale[1], self.gen_scale[0], self.gen_scale[0], self.pic_dim]
 	'''call the function at the end of training'''
 	def closure(self):
 		self.logfile.close()
 	'''call the function to train the model'''
-	def train(self, dataset):
+	def train(self, dataloader):
 		# define the placeholders.
 		videos_ph = tf.placeholder(dtype=tf.float32, shape=[self.batch_size]+self.video_shape, name='real_videos')
 		noise_ph = tf.placeholder(dtype=tf.float32, shape=[None, self.noise_dim], name='noise')
@@ -88,8 +89,8 @@ class videoGan():
 				tf.global_variables_initializer().run()
 				epoch_now = 0
 			for epoch in range(epoch_now, self.max_epoch):
-				batchnum_per_epoch = len(dataset)
-				for batch_idx, data in enumerate(dataset.iteration()):
+				batchnum_per_epoch = len(dataloader)
+				for batch_idx, data in enumerate(dataloader.iteration()):
 					batch_noise = np.random.uniform(-1, 1, [self.batch_size, self.noise_dim]).astype(np.float32)
 					self.session.run([dis_optim], feed_dict={videos_ph: data, noise_ph: batch_noise})
 					self.session.run([gen_optim], feed_dict={noise_ph: batch_noise})
@@ -103,6 +104,7 @@ class videoGan():
 					sample_noise = np.random.uniform(-1, 1, [self.sample_size, self.noise_dim]).astype(np.float32)
 					sample_videos, errorG = self.session.run([gen_samples, dis_loss, gen_loss], feed_dict={noise_ph: sample_noise})
 					loginfo = self.logger('[Sample]: \n<errorG>: %f' % errorG)
+					self.saveSamples(sample_videos, epoch, self.saveSamples)
 		self.closure()
 	'''
 	Function:
@@ -291,3 +293,8 @@ class videoGan():
 		self.saver.restore(self.session, ckptfile)
 		self.logger('Checkpoint of %d looded successfully...' % ckptfile)
 		return max(ckptdirs)
+	'''Save sample videos from generator'''
+	def saveSamples(self, samples, epoch, savepath):
+		if not os.path.exists(savepath):
+			os.mkdir(savepath)
+		pass
