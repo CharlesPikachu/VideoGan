@@ -8,7 +8,7 @@ preparing...
 - numpy
 - imageio
 - opencv-python
-- tensorflow-gpu
+- tensorflow-gpu(version1.2)
 
 # To Do
 - [x] Train the model of videoGan(that is train).
@@ -16,7 +16,7 @@ preparing...
 
 # Train
 #### Step1
-- download the data for training. [link](http://www.cs.columbia.edu/~vondrick/tinyvideo/).
+- download the data for training. click → [link](http://www.cs.columbia.edu/~vondrick/tinyvideo/).
 ```sh
 for example, you can download:
 <Golf Only> → http://data.csail.mit.edu/videogan/golf.tar.bz2
