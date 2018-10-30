@@ -5,6 +5,7 @@ Author:
 	Charles
 '''
 import os
+import cv2
 import time
 import imageio
 import numpy as np
@@ -104,8 +105,8 @@ class videoGan():
 				if (epoch % self.save_interval == 0) and (epoch != 0):
 					self.saveModel(savepath=self.modelSaved, epoch=epoch)
 					sample_noise = np.random.uniform(-1, 1, [self.sample_size, self.noise_dim]).astype(np.float32)
-					sample_videos, errorG = self.session.run([gen_samples, dis_loss, gen_loss], feed_dict={noise_ph: sample_noise})
-					loginfo = self.logger('[Sample]: \n<errorG>: %f' % errorG)
+					sample_videos = self.session.run([gen_samples], feed_dict={noise_ph: sample_noise})
+					loginfo = self.logger('[Sample]: \nGenerate samples after epoch %d while training model...' % epoch)
 					self.saveSamples(sample_videos, epoch, self.samplesSaved)
 		self.closure()
 	'''
@@ -295,15 +296,21 @@ class videoGan():
 			self.logger('No checkpoints found, start to train a new model...')
 			return False
 		ckptdirs = [int(i) for i in ckptdirs]
-		ckptfile = os.path.join(str(max(ckptdirs)), 'model.ckpt')
+		ckptfile = os.path.join(ckptpath, str(max(ckptdirs)), 'model.ckpt')
 		self.saver.restore(self.session, ckptfile)
-		self.logger('Checkpoint of %d looded successfully...' % ckptfile)
+		self.logger('Checkpoint of %s looded successfully...' % ckptfile)
 		return max(ckptdirs)
 	'''Save sample videos from generator'''
 	def saveSamples(self, samples, epoch, savepath):
 		if not os.path.exists(savepath):
 			os.mkdir(savepath)
-		epoch_dir = os.path.join(savepath, str(epoch))
+		epoch_dir = os.path.join(savepath, 'epoch_'+str(epoch))
 		if not os.path.exists(epoch_dir):
 			os.mkdir(epoch_dir)
-		imageio.mimsave(epoch_dir, samples)
+		samples = cv2.normalize(np.array(samples), None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+		samples = np.reshape(samples, [samples.shape[1], samples.shape[2], samples.shape[3], samples.shape[4], samples.shape[5]])
+		for idx, sample in enumerate(samples):
+			frames = []
+			for i in range(sample.shape[0]):
+				frames += [sample[i]]
+			imageio.mimsave(os.path.join(epoch_dir, 'sample_%d.gif' % idx), frames)
