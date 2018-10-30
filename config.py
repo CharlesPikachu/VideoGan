@@ -27,6 +27,8 @@ options explain:
 	-max_epoch: Number of training epochs.
 	-save_interval: Save and test the model each save_interval epochs.
 	-trainSet: The paths of the videos for training.
+	-imgSize: The size of img(each frame) in the videos(trainSet).
+	-root: Root path(the absolute path of training data folder).
 '''
 options = {
 			'info': 'videoGan options',
@@ -41,11 +43,13 @@ options = {
 			'pic_dim': 3,
 			'noise_dim': 100,
 			'sample_size': 32,
-			'mask_L1_w': 0.1,
+			'mask_L1_lambda': 0.1,
 			'trainlogfile': 'train.log',
 			'modelSaved': './modelSaved',
 			'samplesSaved': './samplesSaved',
 			'max_epoch': 1000,
-			'save_interval': 5,
-			'trainSet': 'trainList.txt'
+			'save_interval': 1,
+			'trainSet': 'golf.txt',
+			'imgSize': 128,
+			'rootDir': '/data1/zcjin/frames-stable-many'
 			}
