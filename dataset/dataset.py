@@ -44,6 +44,9 @@ class DataLoader():
 			data_batch = np.zeros(shape=[self.batch_size] + self.video_shape)
 			for video_idx, video_path in enumerate(paths_batch):
 				imgs = cv2.imread(os.path.join(self.rootDir, video_path))
+				if imgs is None:
+					data_batch[video_idx] = data
+					continue
 				data = np.zeros(shape=self.video_shape)
 				num_imgs = imgs.shape[0] / self.imgSize
 				for i in range(self.num_frames):
