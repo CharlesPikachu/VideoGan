@@ -4,14 +4,14 @@ Implementation of *Generating Videos with Scene Dynamics*.
 # Effect
 #### Model trained after two epochs
 <figure class="third">
-	<img src="https://github.com/CharlesPikachu/VideoGan/tree/master/effect/epoch_1/0.gif">
-	<img src="https://github.com/CharlesPikachu/VideoGan/tree/master/effect/epoch_1/1.gif">
-	<img src="https://github.com/CharlesPikachu/VideoGan/tree/master/effect/epoch_1/2.gif">
+	<img src="https://github.com/CharlesPikachu/VideoGan/tree/master/effect/epoch_1/sample_0.gif">
+	<img src="https://github.com/CharlesPikachu/VideoGan/tree/master/effect/epoch_1/sample_1.gif">
+	<img src="https://github.com/CharlesPikachu/VideoGan/tree/master/effect/epoch_1/sample_2.gif">
 </figure>
 <figure class="third">
-	<img src="https://github.com/CharlesPikachu/VideoGan/tree/master/effect/epoch_1/3.gif">
-	<img src="https://github.com/CharlesPikachu/VideoGan/tree/master/effect/epoch_1/4.gif">
-	<img src="https://github.com/CharlesPikachu/VideoGan/tree/master/effect/epoch_1/5.gif">
+	<img src="https://github.com/CharlesPikachu/VideoGan/tree/master/effect/epoch_1/sample_3.gif">
+	<img src="https://github.com/CharlesPikachu/VideoGan/tree/master/effect/epoch_1/sample_4.gif">
+	<img src="https://github.com/CharlesPikachu/VideoGan/tree/master/effect/epoch_1/sample_5.gif">
 </figure>
 
 # Dependency
