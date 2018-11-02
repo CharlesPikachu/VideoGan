@@ -2,7 +2,17 @@
 Implementation of *Generating Videos with Scene Dynamics*.
 
 # Effect
-preparing...
+#### Model trained after two epochs
+<figure class="third">
+	<img src="https://github.com/CharlesPikachu/VideoGan/tree/master/effect/epoch_1/0.gif">
+	<img src="https://github.com/CharlesPikachu/VideoGan/tree/master/effect/epoch_1/1.gif">
+	<img src="https://github.com/CharlesPikachu/VideoGan/tree/master/effect/epoch_1/2.gif">
+</figure>
+<figure class="third">
+	<img src="https://github.com/CharlesPikachu/VideoGan/tree/master/effect/epoch_1/3.gif">
+	<img src="https://github.com/CharlesPikachu/VideoGan/tree/master/effect/epoch_1/4.gif">
+	<img src="https://github.com/CharlesPikachu/VideoGan/tree/master/effect/epoch_1/5.gif">
+</figure>
 
 # Dependency
 - numpy
