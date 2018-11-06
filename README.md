@@ -87,6 +87,23 @@ Implementation of *Generating Videos with Scene Dynamics*.
 ![giphy](effect/epoch_5/sample_13.gif)
 ![giphy](effect/epoch_5/sample_14.gif)
 ![giphy](effect/epoch_5/sample_15.gif)
+#### Model trained after seven epochs
+![giphy](effect/epoch_6/sample_0.gif)
+![giphy](effect/epoch_6/sample_1.gif)
+![giphy](effect/epoch_6/sample_2.gif)
+![giphy](effect/epoch_6/sample_3.gif)
+![giphy](effect/epoch_6/sample_4.gif)
+![giphy](effect/epoch_6/sample_5.gif)
+![giphy](effect/epoch_6/sample_6.gif)
+![giphy](effect/epoch_6/sample_7.gif)  
+![giphy](effect/epoch_6/sample_8.gif)
+![giphy](effect/epoch_6/sample_9.gif)
+![giphy](effect/epoch_6/sample_10.gif)
+![giphy](effect/epoch_6/sample_11.gif)
+![giphy](effect/epoch_6/sample_12.gif)
+![giphy](effect/epoch_6/sample_13.gif)
+![giphy](effect/epoch_6/sample_14.gif)
+![giphy](effect/epoch_6/sample_15.gif)
 
 # Dependency
 - numpy
