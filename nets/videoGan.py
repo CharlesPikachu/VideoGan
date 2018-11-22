@@ -175,7 +175,7 @@ class videoGan():
 			'''merge the foreground and background'''
 			foreground_masked = tf.multiply(foreground, mask)
 			background_masked = tf.multiply(background, tf.subtract(tf.constant([1.0]), mask))
-			video = tf.add(foreground, background)
+			video = tf.add(foreground_masked, background_masked)
 			# for L1 regularizer penalty of mask.
 			return (video, tf.reduce_mean(tf.reduce_sum(tf.abs(mask_w)))) if is_training else video
 	'''2D convolution'''
