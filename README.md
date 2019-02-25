@@ -1,5 +1,8 @@
 # VideoGan
-Implementation of *Generating Videos with Scene Dynamics*.
+```sh
+Implementation of Generating Videos with Scene Dynamics.
+You can star this repository to keep track of the project if it's helpful for you, thank you for your support.
+```
 
 # Effect
 #### Model trained after two epochs
